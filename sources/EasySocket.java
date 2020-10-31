@@ -1,9 +1,6 @@
 import java.io.IOException;
 import java.net.Socket;
 
-import java.io.IOException;
-import java.net.Socket;
-
 public abstract class EasySocket extends Thread{
 	
 	private final Socket socket;
