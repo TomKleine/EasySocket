@@ -1,6 +1,9 @@
 import java.io.IOException;
 import java.net.Socket;
 
+import java.io.IOException;
+import java.net.Socket;
+
 public abstract class EasySocket extends Thread{
 	
 	private final Socket socket;
@@ -18,6 +21,8 @@ public abstract class EasySocket extends Thread{
 	private final Callback callback;
 	
 	protected volatile boolean hadTimeout;
+	
+	private static final double MAX_PACKET_SIZE = 4_096_000;
 
 	protected EasySocket(Socket socket){
 		this(socket, 0, DEFAULT_TIMEOUT, null);
@@ -67,11 +72,29 @@ public abstract class EasySocket extends Thread{
 
 	protected final void send(byte[]... bytes) throws IOException{
 		for(byte[] array : bytes){
-			socket.getOutputStream().write(array);
-			kick();
-			bytesSent += array.length;
+			send(array);
 		}
-		socket.getOutputStream().flush();
+	}
+	
+	protected final void send(byte[] bytes) throws IOException{
+		if(bytes.length > MAX_PACKET_SIZE){
+			int subPayloads = (int)Math.ceil(bytes.length / MAX_PACKET_SIZE);
+			
+			int totalSent = 0;
+			
+			for(int i = 0; i < subPayloads; i++){
+				byte[] nextPayload = new byte[(int)Math.min(bytes.length - totalSent, MAX_PACKET_SIZE)];
+				System.arraycopy(bytes, (int)(i * MAX_PACKET_SIZE), nextPayload, 0, nextPayload.length);
+				totalSent += nextPayload.length;
+				send(nextPayload);
+			}
+		
+		}else{
+			socket.getOutputStream().write(bytes);
+			socket.getOutputStream().flush();
+			kick();
+			bytesSent += bytes.length;
+		}
 	}
 	
 	protected final void send(byte b) throws IOException{
